@@ -27,6 +27,10 @@ export class SupabaseStorageService {
     path: string,
     options: UploadOptions = {}
   ): Promise<UploadResult> {
+    if (!supabaseAdmin) {
+      throw new Error('Supabase admin client not initialized. Check environment variables.')
+    }
+
     const { bucket = this.bucket, makePublic = true } = options
 
     try {
@@ -68,6 +72,10 @@ export class SupabaseStorageService {
    * Delete a file from Supabase Storage
    */
   async deleteFile(path: string, bucket: string = this.bucket): Promise<void> {
+    if (!supabaseAdmin) {
+      throw new Error('Supabase admin client not initialized. Check environment variables.')
+    }
+
     const { error } = await supabaseAdmin.storage
       .from(bucket)
       .remove([path])
@@ -81,6 +89,10 @@ export class SupabaseStorageService {
    * Create a signed URL for private file access
    */
   async createSignedUrl(path: string, expiresIn: number = 3600): Promise<string> {
+    if (!supabaseAdmin) {
+      throw new Error('Supabase admin client not initialized. Check environment variables.')
+    }
+
     const { data, error } = await supabaseAdmin.storage
       .from(this.bucket)
       .createSignedUrl(path, expiresIn)
@@ -96,6 +108,10 @@ export class SupabaseStorageService {
    * Get file metadata
    */
   async getFileInfo(path: string, bucket: string = this.bucket) {
+    if (!supabaseAdmin) {
+      throw new Error('Supabase admin client not initialized. Check environment variables.')
+    }
+
     const { data, error } = await supabaseAdmin.storage
       .from(bucket)
       .list(path.split('/').slice(0, -1).join('/'), {
