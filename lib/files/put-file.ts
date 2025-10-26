@@ -366,27 +366,28 @@ const putFileInSupabase = async ({
   }
 
   try {
-    // Generate unique file path
-    const filePath = storageService.generateFilePath(file.name, teamId);
-    
-    // Upload file to Supabase Storage
-    const uploadResult = await storageService.uploadFile(file, filePath, {
-      makePublic: true,
-      expiresIn: 3600 // 1 hour
+    // Create FormData for the API request
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // Upload file via server-side API endpoint
+    const response = await fetch(`/api/file/supabase-upload?teamId=${teamId}`, {
+      method: "POST",
+      body: formData,
     });
 
-    let numPages: number = 1;
-    // get page count for pdf files
-    if (file.type === "application/pdf") {
-      const body = await file.arrayBuffer();
-      numPages = await getPagesCount(body);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Upload failed with status ${response.status}`);
     }
+
+    const result = await response.json();
 
     return {
       type: DocumentStorageType.S3_PATH, // Using S3_PATH for compatibility
-      data: uploadResult.path, // Store the Supabase path
-      numPages: numPages,
-      fileSize: file.size,
+      data: result.data.path, // Store the Supabase path
+      numPages: result.data.numPages,
+      fileSize: result.data.fileSize,
     };
   } catch (error) {
     console.error("Supabase upload failed:", error);

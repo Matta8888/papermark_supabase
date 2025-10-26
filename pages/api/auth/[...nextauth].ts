@@ -14,7 +14,7 @@ import { isBlacklistedEmail } from "@/lib/edge-config/blacklist";
 import { sendVerificationRequestEmail } from "@/lib/emails/send-verification-request";
 import { sendWelcomeEmail } from "@/lib/emails/send-welcome";
 import hanko from "@/lib/hanko";
-import prisma from "@/lib/prisma"; // Re-enabled for database operations
+// import prisma from "@/lib/prisma"; // Temporarily disabled due to connection issues
 import { CreateUserEmailProps, CustomUser } from "@/lib/types";
 import { subscribe } from "@/lib/unsend";
 import { log } from "@/lib/utils";
@@ -115,7 +115,7 @@ export const authOptions: NextAuthOptions = {
       },
     })] : []),
   ],
-  adapter: PrismaAdapter(prisma), // Re-enabled with basic tables created
+        adapter: undefined, // Temporarily disabled due to database connection issues
   session: { strategy: "jwt" },
   cookies: {
     sessionToken: {

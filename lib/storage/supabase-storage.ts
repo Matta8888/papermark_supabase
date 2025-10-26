@@ -126,13 +126,15 @@ export class SupabaseStorageService {
   }
 
   /**
-   * Generate a unique file path
+   * Generate a unique file path that matches the expected S3 pattern
+   * Pattern: <id>/doc_<someId>/<name>.<ext>
    */
   generateFilePath(originalName: string, userId: string): string {
     const timestamp = Date.now()
     const randomId = Math.random().toString(36).substring(2, 15)
     const extension = originalName.split('.').pop()
-    return `${userId}/${timestamp}-${randomId}.${extension}`
+    const docId = `doc_${timestamp}_${randomId}`
+    return `${userId}/${docId}/${originalName}`
   }
 
   /**
