@@ -14,7 +14,7 @@ import { isBlacklistedEmail } from "@/lib/edge-config/blacklist";
 import { sendVerificationRequestEmail } from "@/lib/emails/send-verification-request";
 import { sendWelcomeEmail } from "@/lib/emails/send-welcome";
 import hanko from "@/lib/hanko";
-// import prisma from "@/lib/prisma"; // Temporarily disabled due to connection issues
+import prisma from "@/lib/prisma";
 import { CreateUserEmailProps, CustomUser } from "@/lib/types";
 import { subscribe } from "@/lib/unsend";
 import { log } from "@/lib/utils";
@@ -65,57 +65,55 @@ export const authOptions: NextAuthOptions = {
       },
       allowDangerousEmailAccountLinking: true,
     }),
-    // EmailProvider({
-    //   async sendVerificationRequest({ identifier, url }) {
-    //     const hasValidNextAuthUrl = !!process.env.NEXTAUTH_URL;
-    //     let finalUrl = url;
+    EmailProvider({
+      async sendVerificationRequest({ identifier, url }) {
+        const hasValidNextAuthUrl = !!process.env.NEXTAUTH_URL;
+        let finalUrl = url;
 
-    //     if (!hasValidNextAuthUrl) {
-    //       const mainDomainUrl = getMainDomainUrl();
-    //       const urlObj = new URL(url);
-    //       const mainDomainObj = new URL(mainDomainUrl);
-    //       urlObj.hostname = mainDomainObj.hostname;
-    //       urlObj.protocol = mainDomainObj.protocol;
-    //       urlObj.port = mainDomainObj.port || "";
+        if (!hasValidNextAuthUrl) {
+          const mainDomainUrl = getMainDomainUrl();
+          const urlObj = new URL(url);
+          const mainDomainObj = new URL(mainDomainUrl);
+          urlObj.hostname = mainDomainObj.hostname;
+          urlObj.protocol = mainDomainObj.protocol;
+          urlObj.port = mainDomainObj.port || "";
 
-    //       finalUrl = urlObj.toString();
-    //     }
+          finalUrl = urlObj.toString();
+        }
 
-    //     if (process.env.NODE_ENV === "development") {
-    //       const checksum = generateChecksum(finalUrl);
-    //       const verificationUrlParams = new URLSearchParams({
-    //         verification_url: finalUrl,
-    //         checksum,
-    //       });
+        if (process.env.NODE_ENV === "development") {
+          const checksum = generateChecksum(finalUrl);
+          const verificationUrlParams = new URLSearchParams({
+            verification_url: finalUrl,
+            checksum,
+          });
 
-    //       const baseUrl = hasValidNextAuthUrl
-    //         ? process.env.NEXTAUTH_URL
-    //         : getMainDomainUrl();
+          const baseUrl = hasValidNextAuthUrl
+            ? process.env.NEXTAUTH_URL
+            : getMainDomainUrl();
 
-    //       const verificationUrl = `${baseUrl}/verify?${verificationUrlParams}`;
-    //       console.log("[Login URL]", verificationUrl);
-    //       return;
-    //     } else {
-    //       await sendVerificationRequestEmail({
-    //         url: finalUrl,
-    //         email: identifier,
-    //       });
-    //     }
-    //   },
-    // }),
+          const verificationUrl = `${baseUrl}/verify?${verificationUrlParams}`;
+          console.log("[Login URL]", verificationUrl);
+          return;
+        } else {
+          await sendVerificationRequestEmail({
+            url: finalUrl,
+            email: identifier,
+          });
+        }
+      },
+    }),
     // Only include PasskeyProvider if Hanko is configured
     ...(hanko ? [PasskeyProvider({
       tenant: hanko,
       async authorize({ userId }) {
-        // Temporarily disabled due to database connection issues
-        // const user = await prisma.user.findUnique({ where: { id: userId } });
-        // if (!user) return null;
-        // return user;
-        return null; // Temporary fallback
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return null;
+        return user;
       },
     })] : []),
   ],
-  // adapter: PrismaAdapter(prisma), // Temporarily disabled due to connection issues
+  adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   cookies: {
     sessionToken: {
@@ -139,27 +137,27 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.user = user;
       }
-      // refresh the user data - temporarily disabled due to database connection issues
-      // if (trigger === "update") {
-      //   const user = token?.user as CustomUser;
-      //   const refreshedUser = await prisma.user.findUnique({
-      //     where: { id: user.id },
-      //   });
-      //   if (refreshedUser) {
-      //     token.user = refreshedUser;
-      //   } else {
-      //     return {};
-      //   }
+      // refresh the user data
+      if (trigger === "update") {
+        const user = token?.user as CustomUser;
+        const refreshedUser = await prisma.user.findUnique({
+          where: { id: user.id },
+        });
+        if (refreshedUser) {
+          token.user = refreshedUser;
+        } else {
+          return {};
+        }
 
-      //   if (refreshedUser?.email !== user.email) {
-      //     // if user has changed email, delete all accounts for the user
-      //     if (user.id && refreshedUser.email) {
-      //       await prisma.account.deleteMany({
-      //         where: { userId: user.id },
-      //       });
-      //     }
-      //   }
-      // }
+        if (refreshedUser?.email !== user.email) {
+          // if user has changed email, delete all accounts for the user
+          if (user.id && refreshedUser.email) {
+            await prisma.account.deleteMany({
+              where: { userId: user.id },
+            });
+          }
+        }
+      }
       return token;
     },
     session: async ({ session, token }) => {
@@ -172,28 +170,27 @@ export const authOptions: NextAuthOptions = {
     },
   },
   events: {
-    // Temporarily disabled due to database connection issues
-    // async createUser(message) {
-    //   const params: CreateUserEmailProps = {
-    //     user: {
-    //       name: message.user.name,
-    //       email: message.user.email,
-    //     },
-    //   };
+    async createUser(message) {
+      const params: CreateUserEmailProps = {
+        user: {
+          name: message.user.name,
+          email: message.user.email,
+        },
+      };
 
-    //   await identifyUser(message.user.email ?? message.user.id);
-    //   await trackAnalytics({
-    //     event: "User Signed Up",
-    //     email: message.user.email,
-    //     userId: message.user.id,
-    //   });
+      await identifyUser(message.user.email ?? message.user.id);
+      await trackAnalytics({
+        event: "User Signed Up",
+        email: message.user.email,
+        userId: message.user.id,
+      });
 
-    //   await sendWelcomeEmail(params);
+      await sendWelcomeEmail(params);
 
-    //   if (message.user.email) {
-    //     await subscribe(message.user.email);
-    //   }
-    // },
+      if (message.user.email) {
+        await subscribe(message.user.email);
+      }
+    },
   },
 };
 
