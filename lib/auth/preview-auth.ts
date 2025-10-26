@@ -29,12 +29,16 @@ async function createPreviewSession(
   // Validate session data before storing
   ZPreviewSessionSchema.parse(sessionData);
 
-  // Store session in Redis
-  await redis.set(
-    `preview_session:${sessionToken}`,
-    JSON.stringify(sessionData),
-    { pxat: expiresAt },
-  );
+  // Store session in Redis (if available)
+  if (redis) {
+    await redis.set(
+      `preview_session:${sessionToken}`,
+      JSON.stringify(sessionData),
+      { pxat: expiresAt },
+    );
+  } else {
+    console.warn("⚠️  Redis not configured - preview sessions won't persist");
+  }
 
   return {
     token: sessionToken,
@@ -49,6 +53,12 @@ async function verifyPreviewSession(
 ): Promise<PreviewSession | null> {
   const sessionToken = previewToken;
   if (!sessionToken) return null;
+
+  // If Redis is not configured, return null (preview won't work)
+  if (!redis) {
+    console.warn("⚠️  Redis not configured - cannot verify preview session");
+    return null;
+  }
 
   const session = await redis.get(`preview_session:${sessionToken}`);
   if (!session) return null;

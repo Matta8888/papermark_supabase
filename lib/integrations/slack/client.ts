@@ -16,9 +16,10 @@ export class SlackClient {
     this.clientId = process.env.SLACK_CLIENT_ID as string;
     this.clientSecret = process.env.SLACK_CLIENT_SECRET as string;
 
-    if (!this.clientId || !this.clientSecret) {
-      throw new Error("SLACK_CLIENT_ID and SLACK_CLIENT_SECRET must be set");
-    }
+    // Allow Slack to be optional for local development
+    // if (!this.clientId || !this.clientSecret) {
+    //   throw new Error("SLACK_CLIENT_ID and SLACK_CLIENT_SECRET must be set");
+    // }
   }
 
   // private decryptToken(accessToken: string): string {

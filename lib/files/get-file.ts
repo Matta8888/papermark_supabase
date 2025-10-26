@@ -13,6 +13,12 @@ export const getFile = async ({
   data,
   isDownload = false,
 }: GetFileOptions): Promise<string> => {
+  // Check if we're using Supabase transport but S3_PATH storage type
+  const UPLOAD_TRANSPORT = process.env.NEXT_PUBLIC_UPLOAD_TRANSPORT;
+  if (UPLOAD_TRANSPORT === "supabase" && type === DocumentStorageType.S3_PATH) {
+    return getFileFromSupabase(data);
+  }
+  
   const url = await match(type)
     .with(DocumentStorageType.VERCEL_BLOB, () => {
       if (isDownload) {
@@ -87,4 +93,19 @@ const getFileFromS3 = async (key: string) => {
       key,
     );
   }
+};
+
+const getFileFromSupabase = async (path: string): Promise<string> => {
+  const { createClient } = await import("@supabase/supabase-js");
+  
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  
+  const { data } = supabase.storage
+    .from("documents")
+    .getPublicUrl(path);
+  
+  return data.publicUrl;
 };

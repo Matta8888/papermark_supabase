@@ -14,7 +14,7 @@ import { isBlacklistedEmail } from "@/lib/edge-config/blacklist";
 import { sendVerificationRequestEmail } from "@/lib/emails/send-verification-request";
 import { sendWelcomeEmail } from "@/lib/emails/send-welcome";
 import hanko from "@/lib/hanko";
-// import prisma from "@/lib/prisma"; // Temporarily disabled due to connection issues
+import prisma from "@/lib/prisma";
 import { CreateUserEmailProps, CustomUser } from "@/lib/types";
 import { subscribe } from "@/lib/unsend";
 import { log } from "@/lib/utils";
@@ -107,15 +107,13 @@ export const authOptions: NextAuthOptions = {
     ...(hanko ? [PasskeyProvider({
       tenant: hanko,
       async authorize({ userId }) {
-        // Temporarily disabled due to database connection issues
-        // const user = await prisma.user.findUnique({ where: { id: userId } });
-        // if (!user) return null;
-        // return user;
-        return null; // Temporary fallback
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return null;
+        return user;
       },
     })] : []),
   ],
-        adapter: undefined, // Temporarily disabled due to database connection issues
+  adapter: undefined, // Disabled temporarily - schema sync issues
   session: { strategy: "jwt" },
   cookies: {
     sessionToken: {
@@ -163,8 +161,10 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     session: async ({ session, token }) => {
+      const tokenUser = (token.user || token) as any;
       (session.user as CustomUser) = {
-        id: token.sub,
+        // Use the actual user ID from the token/user object, not the OAuth sub
+        id: tokenUser?.id || token.sub,
         // @ts-ignore
         ...(token || session).user,
       };

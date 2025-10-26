@@ -130,8 +130,9 @@ const createFilePathValidator = () => {
         }
 
         // Case 2: file storage paths - must match pattern: <id>/doc_<someId>/<name>.<ext>
+        // Allow spaces and other common filename characters
         const s3PathPattern =
-          /^[a-zA-Z0-9_-]+\/doc_[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+$/;
+          /^[a-zA-Z0-9_-]+\/doc_[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.\s-]+\.[a-zA-Z0-9]+$/;
         return s3PathPattern.test(path);
       },
       {
@@ -341,7 +342,8 @@ export const documentUploadSchema = z
           }
         }
         // Or an S3 path (allowed for migration)
-        return /^[a-zA-Z0-9_-]+\/doc_[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+$/.test(
+        // Allow spaces and other common filename characters
+        return /^[a-zA-Z0-9_-]+\/doc_[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.\s-]+\.[a-zA-Z0-9]+$/.test(
           data.url,
         );
       }
