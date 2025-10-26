@@ -3,6 +3,7 @@ import { upload } from "@vercel/blob/client";
 import { match } from "ts-pattern";
 
 import { newId } from "@/lib/id-helper";
+import { storageService } from "@/lib/storage/supabase-storage";
 import { getPagesCount } from "@/lib/utils/get-page-number-count";
 import type {
   MultipartCompleteRequest,
@@ -47,6 +48,7 @@ export const putFile = async ({
   )
     .with("s3", async () => putFileInS3({ file, teamId, docId }))
     .with("vercel", async () => putFileInVercel(file))
+    .with("supabase", async () => putFileInSupabase({ file, teamId, docId }))
     .otherwise(() => {
       return {
         type: null,
@@ -335,5 +337,59 @@ const putFileMultipart = async ({
     // Fallback to single upload on error
     console.log("Falling back to single upload...");
     return await putFileSingle({ file, teamId, docId });
+  }
+};
+
+// Supabase file upload
+const putFileInSupabase = async ({
+  file,
+  teamId,
+  docId,
+}: {
+  file: File;
+  teamId: string;
+  docId?: string;
+}) => {
+  if (!docId) {
+    docId = newId("doc");
+  }
+
+  if (
+    !SUPPORTED_DOCUMENT_MIME_TYPES.includes(file.type) &&
+    !file.name.endsWith(".dwg") &&
+    !file.name.endsWith(".dxf") &&
+    !file.name.endsWith(".xlsm")
+  ) {
+    throw new Error(
+      "Only PDF, Powerpoint, Word, and Excel, ZIP files are supported",
+    );
+  }
+
+  try {
+    // Generate unique file path
+    const filePath = storageService.generateFilePath(file.name, teamId);
+    
+    // Upload file to Supabase Storage
+    const uploadResult = await storageService.uploadFile(file, filePath, {
+      makePublic: true,
+      expiresIn: 3600 // 1 hour
+    });
+
+    let numPages: number = 1;
+    // get page count for pdf files
+    if (file.type === "application/pdf") {
+      const body = await file.arrayBuffer();
+      numPages = await getPagesCount(body);
+    }
+
+    return {
+      type: DocumentStorageType.S3_PATH, // Using S3_PATH for compatibility
+      data: uploadResult.path, // Store the Supabase path
+      numPages: numPages,
+      fileSize: file.size,
+    };
+  } catch (error) {
+    console.error("Supabase upload failed:", error);
+    throw new Error(`Failed to upload file to Supabase: ${error}`);
   }
 };
